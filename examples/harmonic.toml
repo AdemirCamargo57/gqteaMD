@@ -1,0 +1,26 @@
+[input]
+xyz = "water.xyz"
+
+[cell]
+a = 20.0
+b = 20.0
+c = 20.0
+
+[dynamics]
+timestep_fs = 0.25
+steps = 10
+
+[force_provider]
+type = "harmonic"
+k_ev_per_angstrom2 = 0.1
+
+[output]
+trajectory = "harmonic_traj.xyz"
+log = "harmonic_md.log"
+velocities = "harmonic_vel.vel"
+forces = "harmonic_forces.for"
+log_interval = 1
+
+[restart]
+path = "RESTART"
+interval = 5

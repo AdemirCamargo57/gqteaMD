@@ -1,0 +1,30 @@
+[input]
+xyz = "water.xyz"
+
+[cell]
+a = 20.0
+b = 20.0
+c = 20.0
+
+[dynamics]
+timestep_fs = 0.25
+steps = 10
+
+[force_provider]
+type = "uff"
+bond_detection_scale = 1.2
+cutoff_angstrom = 10.0
+atom_types = ["O_3", "H_", "H_"]
+charges = [-0.834, 0.417, 0.417]
+electrostatics = true
+nonbonded_exclusions = "exclude_12_13"
+lj_14_scale = 1.0
+electrostatic_14_scale = 1.0
+lj_cutoff_mode = "shift"
+use_neighbor_list = true
+neighbor_skin_angstrom = 2.0
+
+[output]
+trajectory = "uff_water_charged_traj.xyz"
+log = "uff_water_charged_md.log"
+log_interval = 1

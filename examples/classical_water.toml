@@ -1,0 +1,33 @@
+[input]
+xyz = "water.xyz"
+
+[cell]
+a = 20.0
+b = 20.0
+c = 20.0
+
+[dynamics]
+timestep_fs = 0.25
+steps = 10
+
+[force_provider]
+type = "classical"
+cutoff_angstrom = 10.0
+exclude_bonded = true
+bonds = [
+  { atoms = [0, 1], k_ev_per_angstrom2 = 45.0, r0_angstrom = 0.9572 },
+  { atoms = [0, 2], k_ev_per_angstrom2 = 45.0, r0_angstrom = 0.9572 },
+]
+
+[force_provider.lennard_jones.O]
+epsilon_ev = 0.0067
+sigma_angstrom = 3.1507
+
+[force_provider.lennard_jones.H]
+epsilon_ev = 0.0
+sigma_angstrom = 1.0
+
+[output]
+trajectory = "classical_water_traj.xyz"
+log = "classical_water_md.log"
+log_interval = 1

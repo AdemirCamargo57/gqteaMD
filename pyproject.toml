@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gqteaMD"
+version = "0.2.1"
+description = "A modular velocity-Verlet molecular dynamics driver for quantum-chemistry force providers."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "cclib>=1.8.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+]
+
+[project.scripts]
+gqteaMD = "gqteaMD.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gqteaMD*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

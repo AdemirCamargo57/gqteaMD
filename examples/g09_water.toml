@@ -1,0 +1,31 @@
+[input]
+xyz = "water.xyz"
+
+[cell]
+a = 20.0
+b = 20.0
+c = 20.0
+
+[dynamics]
+timestep_fs = 0.25
+steps = 100
+
+[force_provider]
+type = "gaussian"
+command = "g09"
+route = "# AM1 Force NoSymm SCF=(MaxCycle=1000)"
+charge = 0
+multiplicity = 1
+nproc = 4
+workdir = "gaussian_steps"
+
+[output]
+trajectory = "TRAJEC.xyz"
+log = "g09_water.csv"
+log_interval = 1
+
+[restart]
+path = "RESTART"
+interval = 5
+resume_from_RESTART = false
+resume_from_GEOMETRY = false

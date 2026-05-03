@@ -1,0 +1,21 @@
+[input]
+xyz = "methane.xyz"
+
+[cell]
+a = 20.0
+b = 20.0
+c = 20.0
+
+[dynamics]
+timestep_fs = 0.25
+steps = 10
+
+[force_provider]
+type = "uff"
+bond_detection_scale = 1.2
+cutoff_angstrom = 10.0
+
+[output]
+trajectory = "uff_methane_traj.xyz"
+log = "uff_methane_md.log"
+log_interval = 1
