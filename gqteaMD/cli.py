@@ -16,6 +16,7 @@ from gqteaMD.forces.classical import ClassicalForceProvider, HarmonicBond, Lenna
 from gqteaMD.forces.gaussian import GaussianForceProvider
 from gqteaMD.forces.mock import HarmonicForceProvider
 from gqteaMD.forces.uff import UFFForceProvider
+from gqteaMD.forces.xtb import XTBCommandForceProvider, XTBForceProvider
 from gqteaMD.integrators.velocity_verlet import VelocityVerletIntegrator
 from gqteaMD.io.restart import read_restart
 from gqteaMD.io.xyz import read_geometry, read_xyz
@@ -38,18 +39,20 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument("--box-size", type=float, default=20.0, help="Cubic box length in angstrom when --cell is omitted")
     run_parser.add_argument(
         "--force-provider",
-        choices=("gaussian", "harmonic", "uff"),
+        choices=("gaussian", "harmonic", "uff", "xtb"),
         default="gaussian",
         help="Force provider for XYZ runs",
     )
     run_parser.add_argument("--gaussian-home", help=r"Gaussian installation folder, for example C:\G09")
     run_parser.add_argument("--gaussian-command", help="Gaussian executable or full path. Overrides --gaussian-home")
     run_parser.add_argument("--route", default=DEFAULT_GAUSSIAN_ROUTE, help="Gaussian route section")
-    run_parser.add_argument("--charge", type=int, default=0, help="Molecular charge for Gaussian runs")
-    run_parser.add_argument("--multiplicity", type=int, default=1, help="Spin multiplicity for Gaussian runs")
+    run_parser.add_argument("--charge", type=int, default=0, help="Molecular charge for Gaussian and xTB runs")
+    run_parser.add_argument("--multiplicity", type=int, default=1, help="Spin multiplicity for Gaussian and xTB runs")
     run_parser.add_argument("--memory", help="Gaussian memory Link 0 value, for example 4GB or 4000MB")
     run_parser.add_argument("--chk", help="Gaussian checkpoint file. Defaults to a per-step file when not provided")
     run_parser.add_argument("--workdir", default="gaussian_steps", help="Folder for Gaussian input/output files")
+    run_parser.add_argument("--xtb-command", help="xTB executable for direct XYZ xTB runs")
+    run_parser.add_argument("--xtb-method", default="GFN2-xTB", help="xTB method for direct XYZ xTB runs")
     run_parser.add_argument("--trajectory", default="TRAJEC.xyz", help="Output XYZ trajectory path")
     run_parser.add_argument("--log", help="Output MD log path")
     run_parser.add_argument("--velocities", help="Optional output velocity frame path, usually ending in .vel")
@@ -187,6 +190,20 @@ def _build_quick_force_provider(args: argparse.Namespace, base_dir: Path):
         return HarmonicForceProvider(args.k)
     if args.force_provider == "uff":
         return UFFForceProvider(bond_detection_scale=args.bond_detection_scale)
+    if args.force_provider == "xtb":
+        if getattr(args, "xtb_command", None):
+            return XTBCommandForceProvider(
+                command=args.xtb_command,
+                method=args.xtb_method,
+                charge=float(args.charge),
+                multiplicity=int(args.multiplicity),
+                workdir=_resolve(base_dir, "xtb_steps"),
+            )
+        return XTBForceProvider(
+            method=args.xtb_method,
+            charge=float(args.charge),
+            multiplicity=int(args.multiplicity),
+        )
     command = args.gaussian_command or _gaussian_command_from_home(args.gaussian_home) or "g16"
     return GaussianForceProvider(
         route=args.route,
@@ -224,6 +241,8 @@ def _build_force_provider(config: dict, base_dir: Path, symbols: list[str]):
         return _build_classical_force_provider(config, symbols)
     if provider_type == "uff":
         return _build_uff_force_provider(provider_config)
+    if provider_type == "xtb":
+        return _build_xtb_force_provider(provider_config, base_dir)
     if provider_type == "gaussian":
         nproc = provider_config.get("nproc", provider_config.get("nprocshared"))
         return GaussianForceProvider(
@@ -237,6 +256,44 @@ def _build_force_provider(config: dict, base_dir: Path, symbols: list[str]):
             chk=provider_config.get("chk", provider_config.get("checkpoint")),
         )
     raise ValueError(f"Unknown force provider type: {provider_type}")
+
+
+def _build_xtb_force_provider(provider_config: dict, base_dir: Path | None = None) -> XTBForceProvider:
+    """Create an xTB provider from TOML force-provider settings."""
+    provider_kwargs = {
+        "method": str(provider_config.get("method", "GFN2-xTB")),
+        "charge": None if provider_config.get("charge") is None else float(provider_config.get("charge", 0.0)),
+        "multiplicity": None
+        if provider_config.get("multiplicity") is None
+        else int(provider_config.get("multiplicity", 1)),
+        "accuracy": float(provider_config.get("accuracy", 1.0)),
+        "electronic_temperature": float(provider_config.get("electronic_temperature", 300.0)),
+        "solvent": str(provider_config.get("solvent", "none")),
+        "use_unwrapped_positions": _config_bool(provider_config.get("use_unwrapped_positions", True)),
+    }
+    command = provider_config.get("command")
+    if command:
+        workdir = provider_config.get("workdir", "xtb_steps")
+        if base_dir is not None:
+            workdir = _resolve(base_dir, workdir)
+        return XTBCommandForceProvider(
+            command=str(command),
+            workdir=workdir,
+            **provider_kwargs,
+        )
+    return XTBForceProvider(
+        method=str(provider_config.get("method", "GFN2-xTB")),
+        charge=None if provider_config.get("charge") is None else float(provider_config.get("charge", 0.0)),
+        multiplicity=None
+        if provider_config.get("multiplicity") is None
+        else int(provider_config.get("multiplicity", 1)),
+        accuracy=float(provider_config.get("accuracy", 1.0)),
+        electronic_temperature=float(provider_config.get("electronic_temperature", 300.0)),
+        max_iterations=int(provider_config.get("max_iterations", 250)),
+        solvent=str(provider_config.get("solvent", "none")),
+        cache_api=_config_bool(provider_config.get("cache_api", True)),
+        use_unwrapped_positions=_config_bool(provider_config.get("use_unwrapped_positions", True)),
+    )
 
 
 def _read_output_restart(config: dict, base_dir: Path, restart_path: str | Path) -> tuple[System, State]:

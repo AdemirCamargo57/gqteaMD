@@ -1,5 +1,6 @@
 """Tests for CLI configuration helpers and provider builders."""
 
+import argparse
 from pathlib import Path
 
 import pytest
@@ -7,7 +8,9 @@ import pytest
 from gqteaMD.cli import (
     _build_classical_force_provider,
     _build_force_provider,
+    _build_quick_force_provider,
     _build_uff_force_provider,
+    _build_xtb_force_provider,
     _default_log_name_for_xyz,
     _gaussian_command_from_home,
     _read_output_restart,
@@ -21,6 +24,7 @@ from gqteaMD.core.state import State, System
 from gqteaMD.forces.classical import ClassicalForceProvider
 from gqteaMD.forces.gaussian import GaussianForceProvider
 from gqteaMD.forces.uff import UFFForceProvider
+from gqteaMD.forces.xtb import XTBCommandForceProvider, XTBForceProvider
 from gqteaMD.io.restart import write_restart
 from gqteaMD.io.xyz import read_xyz
 
@@ -265,6 +269,89 @@ def test_build_uff_force_provider():
     assert provider.lj_cutoff_mode == "shift"
     assert provider.use_neighbor_list is False
     assert provider.neighbor_skin_angstrom == 1.25
+
+
+def test_build_xtb_force_provider():
+    """xTB provider construction should read TOML settings."""
+    provider = _build_xtb_force_provider(
+        {
+            "type": "xtb",
+            "method": "GFN1-xTB",
+            "charge": -1,
+            "multiplicity": 2,
+            "accuracy": 0.75,
+            "electronic_temperature": 400.0,
+            "max_iterations": 123,
+            "solvent": "water",
+            "cache_api": False,
+            "use_unwrapped_positions": False,
+        }
+    )
+
+    assert isinstance(provider, XTBForceProvider)
+    assert provider.method == "GFN1-xTB"
+    assert provider.charge == -1.0
+    assert provider.multiplicity == 2
+    assert provider.accuracy == 0.75
+    assert provider.electronic_temperature == 400.0
+    assert provider.max_iterations == 123
+    assert provider.solvent == "water"
+    assert provider.cache_api is False
+    assert provider.use_unwrapped_positions is False
+
+
+def test_build_force_provider_accepts_xtb_toml(tmp_path):
+    """The general TOML builder should accept type = xtb."""
+    provider = _build_force_provider(
+        {
+            "force_provider": {
+                "type": "xtb",
+                "method": "GFN2-xTB",
+            }
+        },
+        Path(tmp_path),
+        ["H"],
+    )
+
+    assert isinstance(provider, XTBForceProvider)
+    assert provider.method == "GFN2-xTB"
+
+
+def test_build_force_provider_accepts_xtb_command_toml(tmp_path):
+    """TOML xTB provider should use the executable provider when command is set."""
+    provider = _build_force_provider(
+        {
+            "force_provider": {
+                "type": "xtb",
+                "command": "C:/xTB/xtb-6.7.1/bin/xtb.exe",
+                "method": "GFN2-xTB",
+                "workdir": "xtb_steps",
+            }
+        },
+        Path(tmp_path),
+        ["H"],
+    )
+
+    assert isinstance(provider, XTBCommandForceProvider)
+    assert provider.command == "C:/xTB/xtb-6.7.1/bin/xtb.exe"
+    assert provider.workdir == Path(tmp_path) / "xtb_steps"
+
+
+def test_build_quick_force_provider_accepts_xtb(tmp_path):
+    """Direct XYZ runs should accept --force-provider xtb settings."""
+    args = argparse.Namespace(
+        force_provider="xtb",
+        xtb_method="GFN1-xTB",
+        charge=1,
+        multiplicity=2,
+    )
+
+    provider = _build_quick_force_provider(args, Path(tmp_path))
+
+    assert isinstance(provider, XTBForceProvider)
+    assert provider.method == "GFN1-xTB"
+    assert provider.charge == 1.0
+    assert provider.multiplicity == 2
 
 
 def test_uff_example_configs_build_providers():

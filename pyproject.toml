@@ -17,6 +17,10 @@ dependencies = [
 dev = [
     "pytest>=8",
 ]
+xtb = [
+    "ase>=3.22",
+    "xtb>=22.1; python_version < '3.12' and platform_system == 'Linux'",
+]
 
 [project.scripts]
 gqteaMD = "gqteaMD.cli:main"

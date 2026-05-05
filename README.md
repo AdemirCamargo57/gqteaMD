@@ -10,6 +10,7 @@ The initial implementation supports:
 - Swappable force providers.
 - A simple classical force provider with harmonic bonds and Lennard-Jones nonbonded interactions.
 - A first UFF provider with automatic bond detection, atom typing, harmonic bonds, harmonic angles, and Lennard-Jones interactions.
+- An optional xTB provider through the xtb-python ASE calculator.
 - A Gaussian single-point force provider.
 - A deterministic harmonic force provider for tests and dry runs.
 
@@ -20,6 +21,15 @@ From this folder:
 ```powershell
 python -m pip install -e .[dev]
 ```
+
+To use the optional xTB provider, install the extra dependencies:
+
+```powershell
+python -m pip install -e .[xtb]
+```
+
+On platforms where the `xtb` Python wheels are unavailable, install
+`xtb-python` separately, for example with conda-forge.
 
 See [USER_MANUAL.md](USER_MANUAL.md) for complete usage instructions.
 
@@ -62,6 +72,44 @@ gqteaMD run examples/water.xyz --force-provider uff --time-fs 10 --dt-fs 0.5
 
 This first milestone does not include torsions, inversion/out-of-plane terms,
 aromatic/ring typing, bond-order correction, or electrostatics.
+
+## xTB Run
+
+The optional xTB provider uses the xtb-python ASE calculator to obtain single
+point energies and forces during gqteaMD propagation. Install the optional
+dependencies first:
+
+```powershell
+python -m pip install -e .[xtb]
+```
+
+On Windows or newer Python versions, install `xtb-python` separately if pip
+cannot provide the compiled `xtb` package.
+
+Then run the included example:
+
+```powershell
+gqteaMD run examples/xtb_water.toml
+```
+
+You can also use xTB directly from an XYZ file:
+
+```powershell
+gqteaMD run examples/water.xyz --force-provider xtb --xtb-method GFN2-xTB --time-fs 10 --dt-fs 0.5
+```
+
+xTB energies are used in eV and forces in eV/angstrom, matching gqteaMD's
+internal units.
+
+On Windows, where the Python `xtb` package may be unavailable, set the xTB
+executable path in the TOML file:
+
+```toml
+[force_provider]
+type = "xtb"
+command = "C:/xTB/xtb-6.7.1/bin/xtb.exe"
+method = "GFN2-xTB"
+```
 
 ## Restart Files
 

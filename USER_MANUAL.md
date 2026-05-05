@@ -1,6 +1,6 @@
 # gqteaMD User Manual
 
-gqteaMD is a Python molecular dynamics program that uses velocity Verlet integration and modular force providers. It can read atomic coordinates from XYZ files, propagate atoms in an orthorhombic simulation box, and obtain forces from a simple harmonic test potential, a first classical force-field provider, a first UFF provider, or Gaussian single-point force calculations.
+gqteaMD is a Python molecular dynamics program that uses velocity Verlet integration and modular force providers. It can read atomic coordinates from XYZ files, propagate atoms in an orthorhombic simulation box, and obtain forces from a simple harmonic test potential, a first classical force-field provider, a first UFF provider, optional xTB single-point calculations, or Gaussian single-point force calculations.
 
 ## 1. Requirements
 
@@ -26,6 +26,18 @@ pytest
 ```
 
 For Gaussian calculations, Gaussian must be installed separately and available as a command such as `g16`, `g16.exe`, or another local executable name.
+
+For xTB calculations, install the optional Python dependencies in the active
+environment:
+
+```powershell
+python -m pip install -e .[xtb]
+```
+
+The xTB provider uses the xtb-python ASE calculator. xTB itself may require
+platform-specific installation steps depending on the operating system and
+Python environment. If pip cannot provide the compiled `xtb` package for your
+platform, install `xtb-python` separately, for example with conda-forge.
 
 ## 2. Installation
 
@@ -526,12 +538,13 @@ The first version uses velocity Verlet integration in the NVE style. Thermostats
 
 This section selects how forces are computed.
 
-Four force providers are currently available:
+Five force providers are currently available:
 
 ```text
 classical
 harmonic
 uff
+xtb
 gaussian
 ```
 
@@ -864,7 +877,94 @@ Reference implementations and parameter sources used while extending UFF:
 - RDKit UFF utilities:
   `https://www.rdkit.org/docs/cppapi/namespaceForceFields_1_1UFF_1_1Utils.html`
 
-## 12. Gaussian Force Provider
+## 12. xTB Force Provider
+
+The optional xTB force provider builds an ASE `Atoms` object at each force
+evaluation, attaches the xtb-python ASE calculator, and reads the resulting
+potential energy and Cartesian forces. ASE/xTB energies are in eV and forces
+are in eV/angstrom, so no unit conversion is needed inside gqteaMD.
+
+To use xtb.exe as an external program, like Gaussian, go to https://github.com/grimme-lab/xtb/releasesOpens a new window, 
+download the Windows version, and extract it.
+
+Install the optional dependencies before using this provider(this option only work for linux)
+
+```powershell
+cd C:\gqteaMD\venv\src
+python -m pip install -e .[xtb]
+```
+
+On Windows or newer Python versions, pip may only install ASE from this extra.
+In that case, install `xtb-python` separately, for example with conda-forge.
+
+Example:
+
+```toml
+[force_provider]
+type = "xtb"
+# Optional on Linux when xtb-python is installed; recommended on Windows.
+command = "C:/xTB/xtb-6.7.1/bin/xtb.exe"
+method = "GFN2-xTB"
+charge = 0
+multiplicity = 1
+accuracy = 1.0
+electronic_temperature = 300.0
+max_iterations = 250
+solvent = "none"
+cache_api = true
+```
+
+Fields:
+
+- `type`: must be `"xtb"`.
+- `command`: optional xTB executable path. When present, gqteaMD runs this
+  executable with `--grad` and reads the generated gradient file. This is the
+  recommended Windows/pip-only mode.
+- `method`: xTB method name. The default is `"GFN2-xTB"`.
+- `charge`: total molecular charge. The value is stored on the ASE `Atoms`
+  object as initial charges for xTB.
+- `multiplicity`: spin multiplicity. gqteaMD maps this to an unpaired-electron
+  count of `multiplicity - 1` on the ASE `Atoms` object.
+- `accuracy`: numerical xTB accuracy setting. The default is `1.0`.
+- `electronic_temperature`: electronic temperature in K. The default is
+  `300.0`.
+- `max_iterations`: maximum self-consistent iterations. The default is `250`.
+- `solvent`: GBSA implicit solvent name accepted by xtb-python. The default is
+  `"none"`.
+- `cache_api`: when `true`, ask xtb-python to reuse API objects where possible.
+- `use_unwrapped_positions`: when `true`, pass continuous unwrapped
+  coordinates reconstructed from gqteaMD image flags. The default is `true`.
+
+Run the included xTB example with:
+
+```powershell
+gqteaMD run examples/xtb_water.toml
+```
+
+You can also run xTB directly from an XYZ file:
+
+```powershell
+gqteaMD run examples/water.xyz --time-fs 10 --dt-fs 0.5 --force-provider xtb --xtb-method GFN2-xTB
+```
+
+The direct XYZ xTB mode also uses `--charge` and `--multiplicity`.
+
+## 13. Important xTB/PBC Note
+
+gqteaMD has periodic boundary handling for the MD coordinates, but molecular
+xTB calculations through the ASE calculator are not automatically equivalent
+to a fully periodic condensed-phase simulation.
+
+This means:
+
+- gqteaMD wraps atoms inside the orthorhombic box.
+- xTB receives the atomic coordinates for the current molecular structure.
+- By default, gqteaMD sends unwrapped coordinates to avoid breaking molecules
+  across a periodic boundary.
+- You should validate the chosen xTB method and boundary treatment for the
+  chemistry and system size you want to simulate.
+
+## 14. Gaussian Force Provider
 
 The Gaussian force provider writes a Gaussian input file, runs Gaussian, reads the output, and extracts energy and forces.
 
@@ -929,7 +1029,7 @@ eV/angstrom
 
 Gaussian energies are converted from Hartree to eV.
 
-## 13. Important Gaussian/PBC Note
+## 15. Important Gaussian/PBC Note
 
 gqteaMD has periodic boundary handling for the MD coordinates, but ordinary molecular Gaussian calculations are not automatically periodic.
 
@@ -943,7 +1043,7 @@ For isolated molecules or cluster calculations, this is acceptable.
 
 For true periodic materials, you need a quantum chemistry backend or method that supports periodic boundary conditions, or a future force-provider adapter designed for periodic quantum calculations.
 
-## 14. Output Files
+## 16. Output Files
 
 ### MD Log
 
@@ -1041,7 +1141,7 @@ resume_from_GEOMETRY = true
 gqteaMD reads positions, velocities, and forces from `GEOMETRY`, then reads
 potential energy and total energy from `RESTART`.
 
-## 15. Units
+## 17. Units
 
 Internal units:
 
@@ -1062,7 +1162,7 @@ Gaussian conversion constants:
 1 Hartree/Bohr = 51.422067 eV/angstrom
 ```
 
-## 16. Testing
+## 18. Testing
 
 Run the test suite:
 
@@ -1103,7 +1203,7 @@ Inspect the MD log for finite energies and the trajectory in a molecular
 viewer. The tests check mathematical consistency and input parsing, but they
 do not prove chemical transferability for every UFF atom type or molecule.
 
-## 17. Troubleshooting
+## 19. Troubleshooting
 
 ### `gqteaMD` command is not recognized
 
@@ -1176,7 +1276,7 @@ To list files:
 Get-ChildItem .\gqteaMD -Recurse
 ```
 
-## 18. Current Limitations
+## 20. Current Limitations
 
 The first version does not yet include:
 
@@ -1194,7 +1294,7 @@ The first version does not yet include:
 
 The code is structured so these features can be added as separate modules.
 
-## 19. Recommended First Workflow
+## 21. Recommended First Workflow
 
 1. Prepare an XYZ file.
 2. Create a TOML configuration file.
