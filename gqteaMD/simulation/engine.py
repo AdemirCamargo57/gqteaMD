@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from time import perf_counter
 
 import numpy as np
 
@@ -61,8 +62,11 @@ class Simulation:
             raise ValueError("Log interval must be positive")
         if restart_interval is not None and restart_interval <= 0:
             raise ValueError("Restart interval must be positive")
+        calculation_time_s = 0.0
         if self.state.energy is None:
+            calculation_started = perf_counter()
             self.initialize_forces()
+            calculation_time_s = perf_counter() - calculation_started
 
         if trajectory_path is not None:
             self._write_frame(trajectory_path)
@@ -74,11 +78,13 @@ class Simulation:
             self._write_forces(force_path)
         if log_path is not None:
             self._write_log_header_if_needed(log_path)
-            self._write_log(log_path)
+            self._write_log(log_path, calculation_time_s)
         self._write_restart_if_needed(restart_path, restart_interval)
 
         for _ in range(steps):
+            calculation_started = perf_counter()
             self.state = self.integrator.step(self.system, self.state, self.force_provider)
+            calculation_time_s = perf_counter() - calculation_started
             if geometry_path is not None:
                 self._write_geometry(geometry_path)
             if self.state.step % log_interval == 0:
@@ -89,7 +95,7 @@ class Simulation:
                 if force_path is not None:
                     self._write_forces(force_path)
                 if log_path is not None:
-                    self._write_log(log_path)
+                    self._write_log(log_path, calculation_time_s)
             self._write_restart_if_needed(restart_path, restart_interval)
         self._write_final_outputs(final_position_path, final_velocity_path, final_force_path, final_geometry_path)
         return self.state
@@ -156,19 +162,19 @@ class Simulation:
             return
         header = (
             f"{'step':>8s} {'time_fs':>16s} {'potential_eV':>16s} {'kinetic_eV':>16s}"
-            f" {'total_eV':>16s} {'temperature_K':>16s}\n"
+            f" {'total_eV':>16s} {'temperature_K':>16s} {'CPU_s':>16s}\n"
         )
         path.write_text(header, encoding="utf-8")
 
-    def _write_log(self, log_path: str | Path) -> None:
-        """Append one whitespace-separated energy and temperature row to the log."""
+    def _write_log(self, log_path: str | Path, calculation_time_s: float) -> None:
+        """Append one whitespace-separated energy, temperature, and timing row to the log."""
         kinetic = self.state.kinetic_energy(self.system.masses)
         potential = float(np.nan if self.state.energy is None else self.state.energy)
         total = kinetic + potential if self.state.total_energy is None else self.state.total_energy
         temperature = self.state.temperature(self.system.masses)
         line = (
             f"{self.state.step:8d} {self.state.time_fs:16.8f} {potential:16.8f}"
-            f" {kinetic:16.8f} {total:16.8f} {temperature:16.8f}\n"
+            f" {kinetic:16.8f} {total:16.8f} {temperature:16.8f} {calculation_time_s:16.8f}\n"
         )
         with Path(log_path).open("a", encoding="utf-8") as handle:
             handle.write(line)

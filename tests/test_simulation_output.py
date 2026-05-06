@@ -27,8 +27,8 @@ def test_existing_trajectory_and_log_are_appended(tmp_path):
     log_path = tmp_path / "log.csv"
     trajectory_path.write_text("existing trajectory\n", encoding="utf-8")
     log_path.write_text(
-        "    step          time_fs     potential_eV       kinetic_eV         total_eV    temperature_K\n"
-        "      99       9.90000000       1.00000000       2.00000000       3.00000000       4.00000000\n",
+        "    step          time_fs     potential_eV       kinetic_eV         total_eV    temperature_K            CPU_s\n"
+        "      99       9.90000000       1.00000000       2.00000000       3.00000000       4.00000000       0.50000000\n",
         encoding="utf-8",
     )
 
@@ -38,10 +38,16 @@ def test_existing_trajectory_and_log_are_appended(tmp_path):
     log_text = log_path.read_text(encoding="utf-8")
     assert trajectory_text.startswith("existing trajectory\n")
     assert trajectory_text.count("\n1\n") == 2
-    assert log_text.count("    step          time_fs     potential_eV       kinetic_eV         total_eV    temperature_K") == 1
-    assert "      99       9.90000000       1.00000000       2.00000000       3.00000000       4.00000000" in log_text
+    assert log_text.count(
+        "    step          time_fs     potential_eV       kinetic_eV         total_eV    temperature_K            CPU_s"
+    ) == 1
+    assert (
+        "      99       9.90000000       1.00000000       2.00000000       3.00000000       4.00000000       0.50000000"
+        in log_text
+    )
     assert "       0       0.00000000" in log_text
     assert "       1       0.10000000" in log_text
+    assert all(len(line.split()) == 7 for line in log_text.splitlines()[1:])
 
 
 def test_new_log_gets_header(tmp_path):
@@ -52,9 +58,10 @@ def test_new_log_gets_header(tmp_path):
 
     log_text = log_path.read_text(encoding="utf-8")
     assert log_text.startswith(
-        "    step          time_fs     potential_eV       kinetic_eV         total_eV    temperature_K\n"
+        "    step          time_fs     potential_eV       kinetic_eV         total_eV    temperature_K            CPU_s\n"
     )
     assert "       0       0.00000000" in log_text
+    assert len(log_text.splitlines()[1].split()) == 7
 
 
 def test_velocity_and_force_files_are_written(tmp_path):

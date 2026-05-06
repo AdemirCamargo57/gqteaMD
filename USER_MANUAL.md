@@ -566,6 +566,12 @@ Fields:
 
 Trajectory and log files are appended if they already exist.
 
+The MD log automatically includes `CPU_s` in the seventh column. This is
+the elapsed time, in seconds, spent calculating the force and integration work
+for the logged step. There is no separate configuration option for this field;
+enable logging with `log`, and control how often timing rows are written with
+`log_interval`.
+
 Each trajectory atom line contains seven columns: symbol, x, y, z, vx, vy, vz.
 gqteaMD also rewrites `GEOMETRY` at every calculation step. Each `GEOMETRY`
 atom line contains ten columns: symbol, x, y, z, vx, vy, vz, Fx, Fy, Fz.
@@ -1051,9 +1057,9 @@ The log file is whitespace-separated text with fixed-width numeric columns,
 matching the alignment style used by XYZ trajectory atom lines:
 
 ```text
-    step          time_fs     potential_eV       kinetic_eV         total_eV    temperature_K
-       0       0.00000000       0.09162318       0.00000000       0.09162318       0.00000000
-       1       0.25000000       0.09161770       0.00000548       0.09162318       0.01413698
+    step          time_fs     potential_eV       kinetic_eV         total_eV    temperature_K            CPU_s
+       0       0.00000000       0.09162318       0.00000000       0.09162318       0.00000000       0.00341852
+       1       0.25000000       0.09161770       0.00000548       0.09162318       0.01413698       0.00287641
 ```
 
 Columns:
@@ -1064,9 +1070,24 @@ Columns:
 - `kinetic_eV`: kinetic energy in eV.
 - `total_eV`: potential plus kinetic energy in eV.
 - `temperature_K`: instantaneous temperature in kelvin.
+- `CPU_s`: elapsed seconds spent calculating the logged step.
 
 If the log file already exists, new rows are appended to the end of the file.
 The header is not duplicated.
+
+No new input option is required for timing output. To use it, write a normal MD
+log and choose the logging cadence:
+
+```toml
+[output]
+log = "water_gqteaMD.log"
+log_interval = 5
+```
+
+With this configuration, gqteaMD appends one log row every five MD steps, and
+each row includes `CPU_s` as the seventh column. Use this field to
+compare step cost across force providers, system sizes, or external quantum
+chemistry calls.
 
 ### XYZ Trajectory
 
