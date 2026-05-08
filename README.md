@@ -109,6 +109,7 @@ executable path in the TOML file:
 type = "xtb"
 command = "C:/xTB/xtb-6.7.1/bin/xtb.exe"
 method = "GFN2-xTB"
+omp_num_threads = 4
 ```
 
 ## Restart Files

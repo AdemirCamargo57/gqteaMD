@@ -282,6 +282,7 @@ def test_build_xtb_force_provider():
             "accuracy": 0.75,
             "electronic_temperature": 400.0,
             "max_iterations": 123,
+            "omp_num_threads": 6,
             "solvent": "water",
             "cache_api": False,
             "use_unwrapped_positions": False,
@@ -295,6 +296,7 @@ def test_build_xtb_force_provider():
     assert provider.accuracy == 0.75
     assert provider.electronic_temperature == 400.0
     assert provider.max_iterations == 123
+    assert provider.omp_num_threads == 6
     assert provider.solvent == "water"
     assert provider.cache_api is False
     assert provider.use_unwrapped_positions is False
@@ -325,6 +327,7 @@ def test_build_force_provider_accepts_xtb_command_toml(tmp_path):
                 "type": "xtb",
                 "command": "C:/xTB/xtb-6.7.1/bin/xtb.exe",
                 "method": "GFN2-xTB",
+                "omp_num_threads": 4,
                 "workdir": "xtb_steps",
             }
         },
@@ -334,6 +337,7 @@ def test_build_force_provider_accepts_xtb_command_toml(tmp_path):
 
     assert isinstance(provider, XTBCommandForceProvider)
     assert provider.command == "C:/xTB/xtb-6.7.1/bin/xtb.exe"
+    assert provider.omp_num_threads == 4
     assert provider.workdir == Path(tmp_path) / "xtb_steps"
 
 

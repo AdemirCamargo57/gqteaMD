@@ -20,6 +20,7 @@ multiplicity = 1
 accuracy = 1.0
 electronic_temperature = 300.0
 max_iterations = 250
+omp_num_threads = 1
 solvent = "none"
 
 [output]

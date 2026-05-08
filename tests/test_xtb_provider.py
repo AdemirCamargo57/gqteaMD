@@ -1,5 +1,6 @@
 """Tests for the optional xTB force provider."""
 
+import os
 import subprocess
 
 import numpy as np
@@ -58,6 +59,7 @@ def test_xtb_provider_returns_energy_and_forces(monkeypatch):
     """xTB provider should pass ASE energy and forces through unchanged."""
     FakeAtoms.instances.clear()
     FakeXTB.instances.clear()
+    monkeypatch.setenv("OMP_NUM_THREADS", "old")
     monkeypatch.setattr("gqteaMD.forces.xtb._load_ase_xtb", lambda: (FakeAtoms, FakeXTB))
     system = System(["H", "H"], masses=[1.0, 1.0], cell=Cell(10.0, 11.0, 12.0))
     state = State(
@@ -73,6 +75,7 @@ def test_xtb_provider_returns_energy_and_forces(monkeypatch):
         accuracy=0.5,
         electronic_temperature=500.0,
         max_iterations=99,
+        omp_num_threads=6,
         solvent="water",
         cache_api=False,
     )
@@ -83,6 +86,8 @@ def test_xtb_provider_returns_energy_and_forces(monkeypatch):
     np.testing.assert_allclose(result.forces, [[0.1, 0.2, 0.3], [-0.1, -0.2, -0.3]])
     assert result.metadata["provider"] == "xtb"
     assert result.metadata["method"] == "GFN1-xTB"
+    assert result.metadata["omp_num_threads"] == 6
+    assert os.environ["OMP_NUM_THREADS"] == "6"
     atoms = FakeAtoms.instances[0]
     np.testing.assert_allclose(atoms.positions, [[0.5, 0.0, 0.0], [-0.2, 0.0, 0.0]])
     np.testing.assert_allclose(atoms.cell, np.diag([10.0, 11.0, 12.0]))
@@ -122,6 +127,10 @@ def test_xtb_provider_rejects_invalid_settings():
         XTBForceProvider(accuracy=0.0)
     with pytest.raises(ValueError, match="max_iterations"):
         XTBForceProvider(max_iterations=0)
+    with pytest.raises(ValueError, match="omp_num_threads"):
+        XTBForceProvider(omp_num_threads=0)
+    with pytest.raises(ValueError, match="omp_num_threads"):
+        XTBCommandForceProvider(omp_num_threads=0)
 
 
 def test_parse_xtb_engrad_converts_gradient_to_forces(tmp_path):
@@ -168,6 +177,7 @@ def test_xtb_command_provider_runs_executable_and_parses_engrad(tmp_path, monkey
     def fake_run(args, **kwargs):
         captured["args"] = args
         captured["cwd"] = kwargs["cwd"]
+        captured["env"] = kwargs["env"]
         Path = type(tmp_path)
         cwd = Path(kwargs["cwd"])
         (cwd / "step_000003.engrad").write_text(
@@ -205,6 +215,7 @@ def test_xtb_command_provider_runs_executable_and_parses_engrad(tmp_path, monkey
         method="GFN1-xTB",
         charge=0,
         multiplicity=2,
+        omp_num_threads=8,
         workdir=tmp_path / "xtb_steps",
     )
 
@@ -216,6 +227,7 @@ def test_xtb_command_provider_runs_executable_and_parses_engrad(tmp_path, monkey
         -np.array([[0.01, 0.02, 0.03]]) * HARTREE_PER_BOHR_TO_EV_PER_ANGSTROM,
     )
     assert captured["args"][:3] == [str(command), "step_000003.xyz", "--grad"]
+    assert captured["env"]["OMP_NUM_THREADS"] == "8"
     assert "--gfn" in captured["args"]
     assert "1" in captured["args"]
     assert "--uhf" in captured["args"]

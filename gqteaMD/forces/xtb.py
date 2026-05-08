@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -25,6 +26,7 @@ class XTBForceProvider:
     accuracy: float = 1.0
     electronic_temperature: float = 300.0
     max_iterations: int = 250
+    omp_num_threads: int | None = None
     solvent: str = "none"
     cache_api: bool = True
     use_unwrapped_positions: bool = True
@@ -41,9 +43,12 @@ class XTBForceProvider:
             raise ValueError("xTB electronic_temperature must be positive")
         if self.max_iterations < 1:
             raise ValueError("xTB max_iterations must be 1 or greater")
+        if self.omp_num_threads is not None and self.omp_num_threads < 1:
+            raise ValueError("xTB omp_num_threads must be 1 or greater")
 
     def compute(self, system: System, state: State) -> ForceResult:
         """Return xTB potential energy and Cartesian forces for the current state."""
+        _set_omp_num_threads(self.omp_num_threads)
         Atoms, XTB = _load_ase_xtb()
         positions = state.unwrapped_positions(system.cell) if self.use_unwrapped_positions else state.positions
         atoms = Atoms(
@@ -71,6 +76,7 @@ class XTBForceProvider:
                 "accuracy": self.accuracy,
                 "electronic_temperature": self.electronic_temperature,
                 "max_iterations": self.max_iterations,
+                "omp_num_threads": self.omp_num_threads,
                 "solvent": self.solvent,
                 "cache_api": self.cache_api,
             },
@@ -116,6 +122,21 @@ def _load_ase_xtb() -> tuple[type[Any], type[Any]]:
     return Atoms, XTB
 
 
+def _set_omp_num_threads(omp_num_threads: int | None) -> None:
+    """Set OMP_NUM_THREADS in the current process before xtb-python is called."""
+    if omp_num_threads is not None:
+        os.environ["OMP_NUM_THREADS"] = str(omp_num_threads)
+
+
+def _environment_with_omp_num_threads(omp_num_threads: int | None) -> dict[str, str] | None:
+    """Build a subprocess environment with OMP_NUM_THREADS set when configured."""
+    if omp_num_threads is None:
+        return None
+    env = os.environ.copy()
+    env["OMP_NUM_THREADS"] = str(omp_num_threads)
+    return env
+
+
 @dataclass(frozen=True)
 class XTBCommandForceProvider:
     """Compute energies and forces by running the xTB executable."""
@@ -126,6 +147,7 @@ class XTBCommandForceProvider:
     multiplicity: int | None = 1
     accuracy: float = 1.0
     electronic_temperature: float = 300.0
+    omp_num_threads: int | None = None
     solvent: str = "none"
     use_unwrapped_positions: bool = True
     workdir: Path | str = "xtb_steps"
@@ -142,6 +164,8 @@ class XTBCommandForceProvider:
             raise ValueError("xTB accuracy must be positive")
         if self.electronic_temperature <= 0.0:
             raise ValueError("xTB electronic_temperature must be positive")
+        if self.omp_num_threads is not None and self.omp_num_threads < 1:
+            raise ValueError("xTB omp_num_threads must be 1 or greater")
         object.__setattr__(self, "workdir", Path(self.workdir))
 
     def compute(self, system: System, state: State) -> ForceResult:
@@ -157,9 +181,11 @@ class XTBCommandForceProvider:
         xyz_path = scratch_path / f"step_{state.step:06d}.xyz"
         self._write_xyz(xyz_path, system, state)
         args = self._build_command(command, xyz_path.name)
+        env = _environment_with_omp_num_threads(self.omp_num_threads)
         completed = subprocess.run(
             args,
             cwd=scratch_path,
+            env=env,
             text=True,
             encoding="utf-8",
             errors="replace",
@@ -191,6 +217,7 @@ class XTBCommandForceProvider:
                 "multiplicity": self.multiplicity,
                 "accuracy": self.accuracy,
                 "electronic_temperature": self.electronic_temperature,
+                "omp_num_threads": self.omp_num_threads,
                 "solvent": self.solvent,
             },
         )

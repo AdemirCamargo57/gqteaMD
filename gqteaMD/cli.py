@@ -268,6 +268,9 @@ def _build_xtb_force_provider(provider_config: dict, base_dir: Path | None = Non
         else int(provider_config.get("multiplicity", 1)),
         "accuracy": float(provider_config.get("accuracy", 1.0)),
         "electronic_temperature": float(provider_config.get("electronic_temperature", 300.0)),
+        "omp_num_threads": None
+        if provider_config.get("omp_num_threads") is None
+        else int(provider_config.get("omp_num_threads")),
         "solvent": str(provider_config.get("solvent", "none")),
         "use_unwrapped_positions": _config_bool(provider_config.get("use_unwrapped_positions", True)),
     }
@@ -290,6 +293,9 @@ def _build_xtb_force_provider(provider_config: dict, base_dir: Path | None = Non
         accuracy=float(provider_config.get("accuracy", 1.0)),
         electronic_temperature=float(provider_config.get("electronic_temperature", 300.0)),
         max_iterations=int(provider_config.get("max_iterations", 250)),
+        omp_num_threads=None
+        if provider_config.get("omp_num_threads") is None
+        else int(provider_config.get("omp_num_threads")),
         solvent=str(provider_config.get("solvent", "none")),
         cache_api=_config_bool(provider_config.get("cache_api", True)),
         use_unwrapped_positions=_config_bool(provider_config.get("use_unwrapped_positions", True)),

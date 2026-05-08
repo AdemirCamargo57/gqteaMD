@@ -2,6 +2,51 @@
 
 gqteaMD is a Python molecular dynamics program that uses velocity Verlet integration and modular force providers. It can read atomic coordinates from XYZ files, propagate atoms in an orthorhombic simulation box, and obtain forces from a simple harmonic test potential, a first classical force-field provider, a first UFF provider, optional xTB single-point calculations, or Gaussian single-point force calculations.
 
+## Index
+
+- [1. Requirements](#1-requirements)
+- [2. Installation](#2-installation)
+  - [Updating `gqteaMD.exe` After Code Changes](#updating-gqteamdexe-after-code-changes)
+  - [Oracle Linux 9.5 Installation](#oracle-linux-95-installation)
+- [3. Packaging gqteaMD For Students](#3-packaging-gqteamd-for-students)
+  - [Build The Package](#build-the-package)
+  - [What To Give Students](#what-to-give-students)
+  - [Student Installation](#student-installation)
+  - [Student Quick Run Without TOML](#student-quick-run-without-toml)
+- [4. Running The Example](#4-running-the-example)
+- [5. Easy Gaussian Run From A Folder With An XYZ File](#5-easy-gaussian-run-from-a-folder-with-an-xyz-file)
+- [6. Input XYZ File](#6-input-xyz-file)
+- [7. Configuration File](#7-configuration-file)
+- [8. Configuration Sections](#8-configuration-sections)
+  - [`[input]`](#input)
+  - [`[cell]`](#cell)
+  - [`[dynamics]`](#dynamics)
+  - [`[force_provider]`](#force_provider)
+  - [`[output]`](#output)
+  - [`[restart]`](#restart)
+- [9. Harmonic Force Provider](#9-harmonic-force-provider)
+- [10. Classical Force Provider](#10-classical-force-provider)
+- [11. UFF Force Provider](#11-uff-force-provider)
+- [12. xTB Force Provider](#12-xtb-force-provider)
+- [13. Important xTB/PBC Note](#13-important-xtbpbc-note)
+- [14. Gaussian Force Provider](#14-gaussian-force-provider)
+- [15. Important Gaussian/PBC Note](#15-important-gaussianpbc-note)
+- [16. Output Files](#16-output-files)
+  - [MD Log](#md-log)
+  - [XYZ Trajectory](#xyz-trajectory)
+  - [GEOMETRY, Velocity, And Force Files](#geometry-velocity-and-force-files)
+  - [Restart File](#restart-file)
+- [17. Units](#17-units)
+- [18. Testing](#18-testing)
+- [19. Troubleshooting](#19-troubleshooting)
+  - [`gqteaMD` command is not recognized](#gqteamd-command-is-not-recognized)
+  - [Gaussian command fails](#gaussian-command-fails)
+  - [`No built-in atomic mass for element`](#no-built-in-atomic-mass-for-element)
+  - [Energy jumps in Gaussian MD](#energy-jumps-in-gaussian-md)
+  - [Access denied when using `Get-Content`](#access-denied-when-using-get-content)
+- [20. Current Limitations](#20-current-limitations)
+- [21. Recommended First Workflow](#21-recommended-first-workflow)
+
 ## 1. Requirements
 
 gqteaMD works on Windows and Linux.
@@ -144,6 +189,41 @@ instead:
 
 ```bash
 python -m pip install dist/gqteaMD-0.2.0-py3-none-any.whl
+```
+
+If you installed gqteaMD from a Linux wheel file, such as
+`gqteamd-0.3.0-py3-none-any.whl`, and want to replace it with a newer modified
+version, uninstall the old package from the same Python environment first.
+Activate the environment if you used one:
+
+```bash
+source /path/to/gqteaMD-env/bin/activate
+```
+
+Then uninstall the installed package:
+
+```bash
+python -m pip uninstall gqteamd
+```
+
+If you are not sure of the exact installed package name, check the active
+environment:
+
+```bash
+python -m pip list | grep -i gq
+python -m pip show gqteamd
+```
+
+Then install the new modified wheel:
+
+```bash
+python -m pip install /path/to/new-modified.whl
+```
+
+As an alternative, replace the installed wheel directly:
+
+```bash
+python -m pip install --force-reinstall /path/to/new-modified.whl
 ```
 
 Check that the command is available:
@@ -916,6 +996,7 @@ multiplicity = 1
 accuracy = 1.0
 electronic_temperature = 300.0
 max_iterations = 250
+omp_num_threads = 1
 solvent = "none"
 cache_api = true
 ```
@@ -935,6 +1016,8 @@ Fields:
 - `electronic_temperature`: electronic temperature in K. The default is
   `300.0`.
 - `max_iterations`: maximum self-consistent iterations. The default is `250`.
+- `omp_num_threads`: when set, gqteaMD sets `OMP_NUM_THREADS` to this positive
+  integer before calling xtb-python or launching the xTB executable.
 - `solvent`: GBSA implicit solvent name accepted by xtb-python. The default is
   `"none"`.
 - `cache_api`: when `true`, ask xtb-python to reuse API objects where possible.
@@ -1305,7 +1388,6 @@ The first version does not yet include:
 - Barostats.
 - Initial velocity generation from temperature.
 - Classical dihedral and Coulomb force-field terms.
-- Full UFF aromatic/ring typing, full periodic-table typing, charge equilibration, and long-range electrostatics.
 - Constraints.
 - Standard force-field topology readers.
 - Neighbor lists for large classical simulations.
