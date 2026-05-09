@@ -1016,8 +1016,10 @@ Fields:
 - `electronic_temperature`: electronic temperature in K. The default is
   `300.0`.
 - `max_iterations`: maximum self-consistent iterations. The default is `250`.
-- `omp_num_threads`: when set, gqteaMD sets `OMP_NUM_THREADS` to this positive
-  integer before calling xtb-python or launching the xTB executable.
+- `omp_num_threads`: when set, gqteaMD sets `OMP_NUM_THREADS` and
+  `MKL_NUM_THREADS` to this positive integer before calling xtb-python or
+  launching the xTB executable. This makes the setting effective for xTB builds
+  linked against Intel MKL as well as OpenMP-controlled regions.
 - `solvent`: GBSA implicit solvent name accepted by xtb-python. The default is
   `"none"`.
 - `cache_api`: when `true`, ask xtb-python to reuse API objects where possible.

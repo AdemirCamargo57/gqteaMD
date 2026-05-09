@@ -112,6 +112,10 @@ method = "GFN2-xTB"
 omp_num_threads = 4
 ```
 
+When `omp_num_threads` is set, gqteaMD passes the value through both
+`OMP_NUM_THREADS` and `MKL_NUM_THREADS` so xTB builds linked against Intel MKL
+honor the same thread count.
+
 ## Restart Files
 
 TOML runs can periodically save a restart file named `RESTART`:

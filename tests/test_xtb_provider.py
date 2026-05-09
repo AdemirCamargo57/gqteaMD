@@ -60,6 +60,7 @@ def test_xtb_provider_returns_energy_and_forces(monkeypatch):
     FakeAtoms.instances.clear()
     FakeXTB.instances.clear()
     monkeypatch.setenv("OMP_NUM_THREADS", "old")
+    monkeypatch.setenv("MKL_NUM_THREADS", "old")
     monkeypatch.setattr("gqteaMD.forces.xtb._load_ase_xtb", lambda: (FakeAtoms, FakeXTB))
     system = System(["H", "H"], masses=[1.0, 1.0], cell=Cell(10.0, 11.0, 12.0))
     state = State(
@@ -88,6 +89,7 @@ def test_xtb_provider_returns_energy_and_forces(monkeypatch):
     assert result.metadata["method"] == "GFN1-xTB"
     assert result.metadata["omp_num_threads"] == 6
     assert os.environ["OMP_NUM_THREADS"] == "6"
+    assert os.environ["MKL_NUM_THREADS"] == "6"
     atoms = FakeAtoms.instances[0]
     np.testing.assert_allclose(atoms.positions, [[0.5, 0.0, 0.0], [-0.2, 0.0, 0.0]])
     np.testing.assert_allclose(atoms.cell, np.diag([10.0, 11.0, 12.0]))
@@ -228,6 +230,7 @@ def test_xtb_command_provider_runs_executable_and_parses_engrad(tmp_path, monkey
     )
     assert captured["args"][:3] == [str(command), "step_000003.xyz", "--grad"]
     assert captured["env"]["OMP_NUM_THREADS"] == "8"
+    assert captured["env"]["MKL_NUM_THREADS"] == "8"
     assert "--gfn" in captured["args"]
     assert "1" in captured["args"]
     assert "--uhf" in captured["args"]

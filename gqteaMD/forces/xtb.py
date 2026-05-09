@@ -16,6 +16,9 @@ from gqteaMD.core.state import State, System
 from gqteaMD.forces.base import ForceResult
 
 
+XTB_THREAD_ENV_VARS = ("OMP_NUM_THREADS", "MKL_NUM_THREADS")
+
+
 @dataclass(frozen=True)
 class XTBForceProvider:
     """Compute energies and forces with xTB through ASE."""
@@ -48,7 +51,7 @@ class XTBForceProvider:
 
     def compute(self, system: System, state: State) -> ForceResult:
         """Return xTB potential energy and Cartesian forces for the current state."""
-        _set_omp_num_threads(self.omp_num_threads)
+        _set_xtb_thread_environment(self.omp_num_threads)
         Atoms, XTB = _load_ase_xtb()
         positions = state.unwrapped_positions(system.cell) if self.use_unwrapped_positions else state.positions
         atoms = Atoms(
@@ -122,18 +125,22 @@ def _load_ase_xtb() -> tuple[type[Any], type[Any]]:
     return Atoms, XTB
 
 
-def _set_omp_num_threads(omp_num_threads: int | None) -> None:
-    """Set OMP_NUM_THREADS in the current process before xtb-python is called."""
+def _set_xtb_thread_environment(omp_num_threads: int | None) -> None:
+    """Set xTB thread controls in the current process before xtb-python is called."""
     if omp_num_threads is not None:
-        os.environ["OMP_NUM_THREADS"] = str(omp_num_threads)
+        value = str(omp_num_threads)
+        for name in XTB_THREAD_ENV_VARS:
+            os.environ[name] = value
 
 
 def _environment_with_omp_num_threads(omp_num_threads: int | None) -> dict[str, str] | None:
-    """Build a subprocess environment with OMP_NUM_THREADS set when configured."""
+    """Build a subprocess environment with xTB thread controls set when configured."""
     if omp_num_threads is None:
         return None
     env = os.environ.copy()
-    env["OMP_NUM_THREADS"] = str(omp_num_threads)
+    value = str(omp_num_threads)
+    for name in XTB_THREAD_ENV_VARS:
+        env[name] = value
     return env
 
 
